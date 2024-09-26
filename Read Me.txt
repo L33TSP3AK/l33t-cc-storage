@@ -59,6 +59,3 @@ To create these files:
 2. Save the requirements content as `requirements.txt` in your project's root directory.
 
 These files will provide a good starting point for documentation and dependency management for your project. Remember to keep them updated as your project evolves.
-
-
-<a href="https://t.me/CashOut_Assistant_Bot" rel="nofollow"><img src="https://camo.githubusercontent.com/7bc4ca5f3816cd0761370b2c95b024e61f105a08a2c381e5dfa1b3e812d3ed21/68747470733a2f2f63646e2e69636f6e2d69636f6e732e636f6d2f69636f6e73322f323533302f504e472f3531322f74656c656772616d5f627574746f6e5f69636f6e5f3135313833372e706e67" alt="Telegram" data-canonical-src="https://cdn.icon-icons.com/icons2/2530/PNG/512/telegram_button_icon_151837.png" style="max-width: 100%;"></a>

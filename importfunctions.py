@@ -7,13 +7,34 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdi
 from PyQt5.QtGui import QFont, QColor
 import PyPDF2
 from regex import CREDIT_CARD_PATTERNS, CREDIT_CARD_PATTERNS_TOOLTIPS
+from PyQt5.QtWidgets import QTreeWidgetItem, QTreeWidget
 
 
 
 
+
+def update_statistics(self):
+    stats_text = f"""
+    <font color='blue'>PDF Processing Statistics:</font>
+    <ul>
+    <li>Total PDFs found: {self.total_pdfs}</li>
+    <li>PDFs scanned: {self.scanned_pdfs}</li>
+    <li>PDFs remaining: {self.remaining_pdfs}</li>
+    <li>Results found: {self.results_found}</li>
+    <li>PDFs skipped: {self.skipped_pdfs}</li>
+    </ul>
+    """
+    self.textBrowser.setHtml(stats_text)
 
 
 def pdf_import_function(self):
+    # Reset statistics
+    self.total_pdfs = 0
+    self.scanned_pdfs = 0
+    self.remaining_pdfs = 0
+    self.results_found = 0
+    self.skipped_pdfs = 0
+
     # Select folder containing PDF files
     folder_path = QFileDialog.getExistingDirectory(self, "Select Folder Containing PDF Files")
     if not folder_path:
@@ -21,6 +42,12 @@ def pdf_import_function(self):
         return
 
     self.console_text.append(f"<font color='red'>Selected folder: {folder_path}</font>")
+
+    # Count total PDFs
+    pdf_files = [f for f in os.listdir(folder_path) if f.endswith('.pdf')]
+    self.total_pdfs = len(pdf_files)
+    self.remaining_pdfs = self.total_pdfs
+    self.update_statistics()
 
     # Ask user for search method
     search_method = self.get_search_method()
@@ -37,22 +64,56 @@ def pdf_import_function(self):
         else:
             self.console_text.append("<font color='red'>Regex pattern selection cancelled.</font>")
 
+    # Final update of statistics
+    self.update_statistics()
+
+
+
+
 def process_pdfs_default(self, folder_path):
     self.console_text.append("<font color='red'>Processing PDFs with default method...</font>")
     for filename in os.listdir(folder_path):
         if filename.endswith('.pdf'):
             file_path = os.path.join(folder_path, filename)
             self.console_text.append(f"<font color='red'>Processing: {filename}</font>")
-            # Add your default PDF processing logic here
-            with open(file_path, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                text = ""
-                for page in reader.pages:
-                    text += page.extract_text() + "\n"
-                self.add_to_tree_widget(filename, text)
+            try:
+                with open(file_path, 'rb') as file:
+                    reader = PyPDF2.PdfReader(file)
+                    text = ""
+                    for page in reader.pages:
+                        text += page.extract_text() + "\n"
+                    
+                    # Process the text and add to tree widget
+                    self.add_to_tree_widget(filename, text)
+                    
+                    self.scanned_pdfs += 1
+                    self.remaining_pdfs -= 1
+                    self.results_found += 1  # Assuming each processed PDF counts as a result
+            except Exception as e:
+                self.console_text.append(f"<font color='red'>Error processing {filename}: {str(e)}</font>")
+                self.skipped_pdfs += 1
+                self.remaining_pdfs -= 1
+            
+            self.update_statistics()
 
-def process_pdfs_regex(self, folder_path, regex_patterns):
+
+def process_pdfs_regex(self, folder_path):
     self.console_text.append("<font color='red'>Processing PDFs with regex patterns...</font>")
+    
+    # Define regex patterns for each field
+    patterns = {
+        'Account Number': r'\b\d{10,12}\b',  # 10-12 digit number
+        'Routing Number': r'\b\d{9}\b',  # 9 digit number
+        'Name': r'(?:Mr\.|Mrs\.|Ms\.|Dr\.)\s([A-Z][a-z]+ [A-Z][a-z]+)',
+        'Address': r'\d{1,5}\s\w.\s(\b\w*\b\s){1,2}\w*\.',
+        'City': r'(?<=\n)([A-Z][a-z]+(?: [A-Z][a-z]+)*)',
+        'State': r'\b([A-Z]{2})\b',
+        'ZIP': r'\b\d{5}(?:-\d{4})?\b',
+        'Country': r'\b(USA|United States|Canada)\b',
+        'DOB': r'\b(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/\d{4}\b',
+        'SSN': r'\b\d{3}-\d{2}-\d{4}\b'
+    }
+
     for filename in os.listdir(folder_path):
         if filename.endswith('.pdf'):
             file_path = os.path.join(folder_path, filename)
@@ -63,26 +124,41 @@ def process_pdfs_regex(self, folder_path, regex_patterns):
                 for page in reader.pages:
                     text += page.extract_text() + "\n"
                 
-                results = {}
-                for pattern in regex_patterns:
+                results = {
+                    'Date Imported': date.today().strftime("%Y-%m-%d"),
+                    'Account Type': 'Unknown',  # You may need to determine this separately
+                    'Bank': 'Unknown'  # You may need to determine this separately
+                }
+                
+                for field, pattern in patterns.items():
                     matches = re.findall(pattern, text)
                     if matches:
-                        results[pattern] = matches
+                        results[field] = matches[0]  # Take the first match
+                    else:
+                        results[field] = 'N/A'
                 
                 self.add_to_tree_widget(filename, results)
 
 def add_to_tree_widget(self, filename, data):
-    self.console_text.append(f"<font color='red'>Adding data for {filename} to treeWidget</font>")
-    # Example implementation (modify according to your treeWidget structure)
-    # item = QTreeWidgetItem(self.treeWidget)
-    # item.setText(0, filename)
-    # if isinstance(data, str):
-    #     item.setText(1, data[:100] + "...")  # Show first 100 characters
-    # elif isinstance(data, dict):
-    #     for pattern, matches in data.items():
-    #         child = QTreeWidgetItem(item)
-    #         child.setText(0, pattern)
-    #         child.setText(1, ", ".join(matches))
+    self.console_text.append(f"<font color='red'>Adding data for {filename} to treeWidget_2</font>")
+    
+    item = QTreeWidgetItem(self.treeWidget_2)
+    
+    # Set the data in the order specified
+    columns = ['Date Imported', 'Account Type', 'Bank', 'Name', 'Account Number', 'Routing Number', 
+               'Address', 'City', 'State', 'ZIP', 'Country', 'DOB', 'SSN']
+    
+    for i, column in enumerate(columns):
+        if isinstance(data, dict):
+            item.setText(i, str(data.get(column, 'N/A')))
+        elif isinstance(data, str):
+            # If data is a string (full text), put it in the last column
+            if i == len(columns) - 1:
+                item.setText(i, data[:100] + '...' if len(data) > 100 else data)
+            else:
+                item.setText(i, 'N/A')
+    
+    self.treeWidget_2.addTopLevelItem(item)
 
 def get_search_method(self):
     dialog = QDialog(self)
